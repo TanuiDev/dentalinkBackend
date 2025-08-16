@@ -112,10 +112,25 @@ model Appointment {
   patient     Patient  @relation(fields: [patientId], references: [id])
   dentist     Dentist  @relation(fields: [dentistId], references: [id])
   
+  // Appointment details
   appointmentDate DateTime
+  timeSlot        String   // e.g., "09:00", "14:30"
   duration        Int      // in minutes
+  appointmentType String   // "PHYSICAL" or "VIDEO_CHAT"
+  
+  // Medical condition details
+  conditionDescription String
+  patientAge          Int
+  conditionDuration   String  // e.g., "2 weeks", "3 months"
+  severity            String  // "LOW", "MEDIUM", "HIGH", "URGENT"
+  
+  // Status and notes
   status          String   @default("SCHEDULED") // SCHEDULED, CONFIRMED, CANCELLED, COMPLETED
   notes           String?
+  
+  // Video chat specific fields
+  videoChatLink   String?
+  meetingPassword String?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
