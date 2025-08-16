@@ -112,7 +112,7 @@ export const loginUser = async (req, res) => {
             })
         }
         const payload = {
-            id:user.id,
+            userId:user.id,
             emailAddress:user.emailAddress,
             userName:user.userName,
             firstName:user.firstName,
@@ -125,9 +125,12 @@ export const loginUser = async (req, res) => {
             role:user.role
 
         }
-        const token = jwt.sign(payload,process.env.JWT_SECRET_KEY,{expiresIn:'1h'})
+        const token = jwt.sign(payload,process.env.JWT_SECRET_KEY || 'your-secret-key',{expiresIn:'1h'})
 
-        res.cookie('token',token,{httpOnly:true,secure:true,maxAge:3600000})
+        // Set cookie (optional, for web apps)
+        res.cookie('token',token,{httpOnly:true,secure:false,maxAge:3600000})
+        
+        // Return token in response (required for mobile/API clients)
         res.status(200).json({
             message:"Login successful",
             data:{
@@ -136,7 +139,8 @@ export const loginUser = async (req, res) => {
                     emailAddress:user.emailAddress,
                     userName:user.userName,
                     role:user.role
-                }
+                },
+                token: token 
             }
         })
     }catch(error){

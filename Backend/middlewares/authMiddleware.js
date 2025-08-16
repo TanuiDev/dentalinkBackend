@@ -14,7 +14,7 @@ export const authenticateToken = async (req, res, next) => {
             });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY || 'your-secret-key');
         
         // Get user with role-specific profile
         const user = await prisma.user.findUnique({
