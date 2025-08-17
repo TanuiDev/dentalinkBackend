@@ -132,8 +132,91 @@ model Appointment {
   videoChatLink   String?
   meetingPassword String?
   
+  // Prescriptions relationship
+  prescriptions Prescription[]
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   @@map("appointments")
+}
+
+model Prescription {
+  id          String   @id @default(uuid())
+  prescriptionNumber String @unique // Auto-generated prescription number
+  appointmentId String
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  
+  // Prescription details
+  issueDate   DateTime @default(now())
+  expiryDate  DateTime
+  status      String   @default("ACTIVE") // ACTIVE, EXPIRED, CANCELLED
+  
+  // Medical details
+  diagnosis   String?
+  notes      String?
+  
+  // Relationships
+  medications Medication[]
+  deliveries PrescriptionDelivery[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("prescriptions")
+}
+
+model Medication {
+  id              String   @id @default(uuid())
+  prescriptionId  String
+  prescription    Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  // Medication details
+  medicationName   String
+  dosage          String  // e.g., "500 mg"
+  frequency       String  // e.g., "3 times daily"
+  duration        String  // e.g., "7 days"
+  instructions    String? // e.g., "Take with food"
+  quantity        Int
+  refills         Int     @default(0)
+  
+  // Medical coding
+  medicationCode  String? // RxNorm code
+  dosageForm     String? // e.g., "capsule", "tablet"
+  strength       String? // e.g., "500mg"
+  
+  // Order of use
+  orderOfUse     Int     @default(1) // 1, 2, 3... for multiple medications
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("medications")
+}
+
+model PrescriptionDelivery {
+  id              String   @id @default(uuid())
+  prescriptionId  String
+  prescription    Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  // Delivery details
+  deliveryMethod String  @default("EMAIL") // EMAIL, SMS, etc.
+  recipientEmail String?
+  status         String  @default("PENDING") // PENDING, SENT, DELIVERED, READ, FAILED
+  
+  // Tracking
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  failureReason  String?
+  
+  // Retry mechanism
+  attemptCount   Int     @default(0)
+  maxAttempts    Int     @default(3)
+  lastAttemptAt  DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("prescription_deliveries")
 }

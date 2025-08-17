@@ -280,17 +280,91 @@ export const updateAppointmentStatus = async (req, res) => {
 export const cancelAppointment = async (req, res) => {
     try {
         const { appointmentId } = req.params;
+        const userId = req.user.id;
+        const userRole = req.user.role;
 
-        const appointment = await prisma.appointment.update({
+        // First, get the appointment to check ownership and current status
+        const appointment = await prisma.appointment.findUnique({
+            where: { id: appointmentId },
+            include: {
+                patient: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!appointment) {
+            return res.status(404).json({
+                message: "Appointment not found"
+            });
+        }
+
+        // Check if user has permission to cancel this appointment
+        if (userRole === 'PATIENT') {
+            // Patients can only cancel their own appointments
+            if (appointment.patient.user.id !== userId) {
+                return res.status(403).json({
+                    message: "You can only cancel your own appointments"
+                });
+            }
+        }
+        // DENTIST and ADMIN roles can cancel any appointment (no additional checks needed)
+
+        // Check if appointment is already cancelled
+        if (appointment.status === 'CANCELLED') {
+            return res.status(400).json({
+                message: "Appointment is already cancelled"
+            });
+        }
+
+        // Check if appointment is already completed
+        if (appointment.status === 'COMPLETED') {
+            return res.status(400).json({
+                message: "Cannot cancel a completed appointment"
+            });
+        }
+
+        // Update appointment status to cancelled
+        const updatedAppointment = await prisma.appointment.update({
             where: { id: appointmentId },
             data: {
-                status: 'CANCELLED'
+                status: 'CANCELLED',
+                notes: appointment.notes ? `${appointment.notes}\n[Cancelled by ${userRole === 'PATIENT' ? 'patient' : userRole.toLowerCase()}]` : `[Cancelled by ${userRole === 'PATIENT' ? 'patient' : userRole.toLowerCase()}]`
+            },
+            include: {
+                patient: {
+                    include: {
+                        user: {
+                            select: {
+                                firstName: true,
+                                lastName: true,
+                                emailAddress: true
+                            }
+                        }
+                    }
+                },
+                dentist: {
+                    include: {
+                        user: {
+                            select: {
+                                firstName: true,
+                                lastName: true
+                            }
+                        }
+                    }
+                }
             }
         });
 
         res.json({
             message: "Appointment cancelled successfully",
-            data: appointment
+            data: updatedAppointment
         });
 
     } catch (error) {
