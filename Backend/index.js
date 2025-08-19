@@ -2,7 +2,9 @@ import express from "express";
 
 import {usersRouter} from "./routers/UserRouter.js"
 import {appointmentRouter} from "./routers/appointmentRouter.js"
-import {prescriptionRouter} from "./routers/prescriptionRouter.js"
+// import {prescriptionRouter} from "./routers/prescriptionRouter.js"
+
+import {mpesaStkPushRouter} from "./routers/mpesaSTK.Push.js"
 
 import cors from 'cors'
 import cookieParser from 'cookie-parser';
@@ -10,6 +12,7 @@ import cookieParser from 'cookie-parser';
 export const app=express()
 app.use(express.json())
 app.use(cookieParser())
+app.use(express.urlencoded({extended:true}))
 app.use(cors(
     {
         origin:[
@@ -23,7 +26,8 @@ app.use(cors(
 
 app.use('/auth',usersRouter)
 app.use('/appointments',appointmentRouter)
-app.use('/prescriptions',prescriptionRouter)
+app.use('/mpesa',mpesaStkPushRouter)
+// app.use('/prescriptions',prescriptionRouter)
 
 
 

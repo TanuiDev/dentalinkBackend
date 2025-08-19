@@ -1,27 +1,22 @@
-import express from 'express';
-import {
-    createAndSendPrescription,
-    getPrescription,
-    getUserPrescriptions,
-    resendPrescription
-} from '../controllers/prescriptionController.js';
-import { authenticateToken, requireRole } from '../middlewares/authMiddleware.js';
+// import express from 'express';
 
-const router = express.Router();
+// import { authenticateToken, requireRole } from '../middlewares/authMiddleware.js';
 
-// All prescription routes require authentication
-router.use(authenticateToken);
+// const router = express.Router();
 
-// Create and send e-prescription (Dentists only)
-router.post('/create', requireRole(['DENTIST']), createAndSendPrescription);
+// // All prescription routes require authentication
+// router.use(authenticateToken);
 
-// Get specific prescription (Patients and Dentists)
-router.get('/:prescriptionId', requireRole(['PATIENT', 'DENTIST']), getPrescription);
+// // Create and send e-prescription (Dentists only)
+// router.post('/create', requireRole(['DENTIST']), createAndSendPrescription);
 
-// Get all prescriptions for the authenticated user
-router.get('/my-prescriptions', getUserPrescriptions);
+// // Get specific prescription (Patients and Dentists)
+// router.get('/:prescriptionId', requireRole(['PATIENT', 'DENTIST']), getPrescription);
 
-// Resend prescription if delivery failed (Dentists only)
-router.post('/:prescriptionId/resend', requireRole(['DENTIST']), resendPrescription);
+// // Get all prescriptions for the authenticated user
+// router.get('/my-prescriptions', getUserPrescriptions);
 
-export { router as prescriptionRouter };
+// // Resend prescription if delivery failed (Dentists only)
+// router.post('/:prescriptionId/resend', requireRole(['DENTIST']), resendPrescription);
+
+// export { router as prescriptionRouter };
