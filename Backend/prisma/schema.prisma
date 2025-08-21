@@ -41,6 +41,7 @@ model User {
   patient   Patient?
   dentist   Dentist?
   admin     Admin?
+  payments  Payment[]
   
   @@map("users")
 }
@@ -219,4 +220,31 @@ model PrescriptionDelivery {
   updatedAt DateTime @updatedAt
   
   @@map("prescription_deliveries")
+}
+
+model Payment {
+  id                 String   @id @default(uuid())
+  merchantRequestId  String
+  checkoutRequestId  String   @unique
+  resultCode         Int
+  resultDesc         String
+
+  amount             Decimal  @db.Decimal(10,2)
+  mpesaReceiptNumber String?
+  transactionDate    DateTime?
+  phoneNumber        String?
+  accountReference   String?
+
+  rawCallback        Json
+
+  // Relations
+  userId             String?
+  user               User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  status             String   @default("PENDING")
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("payments")
 }

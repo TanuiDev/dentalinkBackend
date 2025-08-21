@@ -51,6 +51,40 @@ export const initiateSTKPush = async (req, res) => {
         },
       }
     );
+    // Save pending payment with initiating user
+    try {
+      const data = response.data || {};
+      await prisma.payment.upsert({
+        where: { checkoutRequestId: data.CheckoutRequestID },
+        update: {
+          merchantRequestId: data.MerchantRequestID,
+          resultCode: data.ResponseCode ? Number(data.ResponseCode) : 0,
+          resultDesc: data.ResponseDescription || 'Pending',
+          amount: String(amount),
+          phoneNumber: formattedPhone,
+          accountReference: 'Dentalink',
+          rawCallback: data,
+          status: 'PENDING',
+          userId: req.user?.id ?? undefined,
+        },
+        create: {
+          merchantRequestId: data.MerchantRequestID || 'UNKNOWN',
+          checkoutRequestId: data.CheckoutRequestID || `PENDING_${Date.now()}`,
+          resultCode: data.ResponseCode ? Number(data.ResponseCode) : 0,
+          resultDesc: data.ResponseDescription || 'Pending',
+          amount: String(amount),
+          mpesaReceiptNumber: null,
+          transactionDate: null,
+          phoneNumber: formattedPhone,
+          accountReference: 'Dentalink',
+          rawCallback: data,
+          status: 'PENDING',
+          userId: req.user?.id ?? null,
+        },
+      });
+    } catch (saveErr) {
+      console.error('Failed to record pending payment:', saveErr);
+    }
 
     res.status(200).json({
       message: 'Payment initiated successfully',
@@ -95,11 +129,65 @@ export const handleSTKPushCallback = (req, res) => {
 
       console.log('Payment Details:', paymentDetails);
 
-      return res.status(200).json({
-        message: 'Payment processed successfully',
-        success: true,
-        data: paymentDetails
-      });
+      const parseTransactionDate = (raw) => {
+        if (!raw) return null;
+        const str = String(raw);
+        if (str.length !== 14) return null;
+        const year = Number(str.slice(0, 4));
+        const month = Number(str.slice(4, 6)) - 1;
+        const day = Number(str.slice(6, 8));
+        const hour = Number(str.slice(8, 10));
+        const minute = Number(str.slice(10, 12));
+        const second = Number(str.slice(12, 14));
+        const date = new Date(Date.UTC(year, month, day, hour, minute, second));
+        return isNaN(date.getTime()) ? null : date;
+      };
+
+      (async () => {
+        try {
+          const saved = await prisma.payment.upsert({
+            where: { checkoutRequestId: callbackData.CheckoutRequestID },
+            update: {
+              merchantRequestId: callbackData.MerchantRequestID,
+              resultCode: callbackData.ResultCode,
+              resultDesc: callbackData.ResultDesc,
+              amount: paymentDetails.Amount !== undefined ? String(paymentDetails.Amount) : undefined,
+              mpesaReceiptNumber: paymentDetails.MpesaReceiptNumber ?? undefined,
+              transactionDate: parseTransactionDate(paymentDetails.TransactionDate) ?? undefined,
+              phoneNumber: paymentDetails.PhoneNumber ? String(paymentDetails.PhoneNumber) : undefined,
+              accountReference: paymentDetails.AccountReference ?? undefined,
+              rawCallback: callbackData,
+              status: 'SUCCESS',
+            },
+            create: {
+              merchantRequestId: callbackData.MerchantRequestID,
+              checkoutRequestId: callbackData.CheckoutRequestID,
+              resultCode: callbackData.ResultCode,
+              resultDesc: callbackData.ResultDesc,
+              amount: String(paymentDetails.Amount ?? 0),
+              mpesaReceiptNumber: paymentDetails.MpesaReceiptNumber ?? null,
+              transactionDate: parseTransactionDate(paymentDetails.TransactionDate),
+              phoneNumber: paymentDetails.PhoneNumber ? String(paymentDetails.PhoneNumber) : null,
+              accountReference: paymentDetails.AccountReference ?? null,
+              rawCallback: callbackData,
+              status: 'SUCCESS',
+            },
+          });
+
+          return res.status(200).json({
+            message: 'Payment processed successfully',
+            success: true,
+            data: saved,
+          });
+        } catch (dbError) {
+          console.error('Error saving payment:', dbError);
+          return res.status(500).json({
+            message: 'Error saving payment to database',
+            error: dbError.message,
+          });
+        }
+      })();
+      return; // ensure we do not continue below while async handler runs
     } else {
       console.error(`Payment failed: ${callbackData.ResultDesc}`);
       return res.status(200).json({
