@@ -1,5 +1,9 @@
 import axios from 'axios';
-
+import pkg from '@prisma/client';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+const { PrismaClient } = pkg;
+const prisma = new PrismaClient();
 const getTimestamp = () => {
   const date = new Date();
   const year = date.getFullYear();
@@ -52,12 +56,63 @@ export const initiateSTKPush = async (req, res) => {
       message: 'Payment initiated successfully',
       response: response.data, 
     });
-  } catch (error) {
-    console.error('STK Push Error:', error.response?.data || error.message);
-
+  } catch (error) {   
     res.status(500).json({
       message: 'Error initiating payment',
       error: error.response?.data || error.message,
+    });
+  }
+};
+
+
+export const handleSTKPushCallback = (req, res) => {
+  try {
+    const callbackData = req.body.Body.stkCallback;
+    
+    if (!callbackData) {
+      console.error('No callback data received');
+      return res.status(400).json({
+        message: 'No callback data received'
+      });
+    }
+
+  
+    console.log('STK Push Callback Data:', {
+      MerchantRequestID: callbackData.MerchantRequestID,
+      CheckoutRequestID: callbackData.CheckoutRequestID,
+      ResultCode: callbackData.ResultCode,
+      ResultDesc: callbackData.ResultDesc
+    });
+
+    
+    const isSuccessful = callbackData.ResultCode === 0;
+
+    if (isSuccessful) {
+      const paymentDetails = callbackData.CallbackMetadata.Item.reduce((acc, item) => {
+        acc[item.Name] = item.Value;
+        return acc;
+      }, {});
+
+      console.log('Payment Details:', paymentDetails);
+
+      return res.status(200).json({
+        message: 'Payment processed successfully',
+        success: true,
+        data: paymentDetails
+      });
+    } else {
+      console.error(`Payment failed: ${callbackData.ResultDesc}`);
+      return res.status(200).json({
+        message: callbackData.ResultDesc,
+        success: false
+      });
+    }
+
+  } catch (error) {
+    console.error('Error processing callback:', error);
+    return res.status(500).json({
+      message: 'Error processing payment callback',
+      error: error.message
     });
   }
 };
