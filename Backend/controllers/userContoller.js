@@ -92,7 +92,7 @@ export const loginUser = async (req, res) => {
     const {identifier,password} = req.body
 
     try{
-        const user = await prisma.user.findFirst({
+        const user = await prisma.user.findUnique({
             where:{
                 OR:[
                     {emailAddress:identifier},
@@ -105,10 +105,10 @@ export const loginUser = async (req, res) => {
                 message:"Invalid credentials"
             })
         }
-        const isPasswordValid = await bcrypt.compare(password,user.password)
+        const isPasswordValid = await bcrypt.compare(password,user.password)//Compare the entered password with the hashed passwords
         if(!isPasswordValid){
             return res.status(401).json({
-                message:"Incorrect password"
+                message:"Incorrect password. Try again"
             })
         }
         const payload = {
@@ -125,7 +125,7 @@ export const loginUser = async (req, res) => {
             role:user.role
 
         }
-        const token = jwt.sign(payload,process.env.JWT_SECRET_KEY || 'your-secret-key',{expiresIn:'1h'})
+        const token = jwt.sign(payload,process.env.JWT_SECRET_KEY,{expiresIn:'1h'})
 
         // Set cookie (optional, for web apps)
         res.cookie('token',token,{httpOnly:true,secure:false,maxAge:3600000})

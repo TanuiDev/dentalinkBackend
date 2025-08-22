@@ -3,7 +3,7 @@ const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 
 // Get all available dentists
-export const getAvailableDentists = async (req, res) => {
+export const getAvailableDentists = async (_req, res) => {
     try {
         const dentists = await prisma.dentist.findMany({
             include: {
@@ -24,7 +24,7 @@ export const getAvailableDentists = async (req, res) => {
             data: dentists
         });
     } catch (error) {
-        console.error('Error getting dentists:', error);
+       
         res.status(500).json({
             message: "Error retrieving dentists",
             error: error.message
@@ -32,7 +32,7 @@ export const getAvailableDentists = async (req, res) => {
     }
 };
 
-// Create a new appointment
+
 export const createAppointment = async (req, res) => {
     try {
         const {
@@ -48,7 +48,7 @@ export const createAppointment = async (req, res) => {
             notes
         } = req.body;
 
-        // Get patient ID from authenticated user
+        
         const patientId = req.user.patientId; // This will come from auth middleware
 
         // Check if dentist exists

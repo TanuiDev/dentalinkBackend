@@ -1,7 +1,5 @@
 import axios from 'axios';
 import pkg from '@prisma/client';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 const getTimestamp = () => {
