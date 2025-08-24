@@ -92,7 +92,7 @@ export const loginUser = async (req, res) => {
     const {identifier,password} = req.body
 
     try{
-        const user = await prisma.user.findUnique({
+        const user = await prisma.user.findFirst({
             where:{
                 OR:[
                     {emailAddress:identifier},
