@@ -150,3 +150,225 @@ export const loginUser = async (req, res) => {
         })
     }
 }
+
+
+export const getUserProfile = async (req, res) => {
+    const userId = parseInt(req.params.id);
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                emailAddress: true,
+                userName: true,
+                address: true,
+                city: true,
+                state: true,
+                phoneNumber: true,
+                dateOfBirth: true,
+                role: true,
+                dentistProfile: true,
+                patientProfile: true,
+                adminProfile: true
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({
+            message: "User profile retrieved successfully",
+            data: user
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Error retrieving user profile",
+            error
+        });
+    }
+};
+
+export const updateUserProfile = async (req, res) => {
+    const userId = parseInt(req.params.id);
+    const { firstName, lastName, address, city, state, phoneNumber } = req.body;
+
+    try {
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { firstName, lastName, address, city, state, phoneNumber },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                emailAddress: true,
+                userName: true,
+                address: true,
+                city: true,
+                state: true,
+                phoneNumber: true,
+                dateOfBirth: true,
+                role: true
+            }
+        });
+
+        res.status(200).json({
+            message: "User profile updated successfully",
+            data: updatedUser
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Error updating user profile",
+            error
+        });
+    }
+};
+
+export const deleteUser = async (req, res) => {
+    const userId = parseInt(req.params.id);
+
+    try {
+        await prisma.user.delete({
+            where: { id: userId }
+        });
+
+        res.status(200).json({
+            message: "User deleted successfully"
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Error deleting user",
+            error
+        });
+    }
+};
+
+export const getAllUsers = async (req, res) => {
+    try {
+        const users = await prisma.user.findMany({
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                emailAddress: true,
+                userName: true,
+                address: true,
+                city: true,
+                state: true,
+                phoneNumber: true,
+                dateOfBirth: true,
+                role: true
+            }
+        });
+
+        res.status(200).json({
+            message: "Users retrieved successfully",
+            data: users
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Error retrieving users",
+            error
+        });
+    }
+};
+
+export const changePassword = async (req, res) => {
+    const userId = parseInt(req.params.id);
+    const { currentPassword, newPassword } = req.body;
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: "Current password is incorrect" });
+        }
+
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedNewPassword }
+        });
+
+        res.status(200).json({
+            message: "Password changed successfully"
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Error changing password",
+            error
+        });
+    }
+};
+
+export const resetPassword = async (req, res) => {
+    const { emailAddress, newPassword } = req.body;
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: { emailAddress }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { emailAddress },
+            data: { password: hashedNewPassword }
+        });
+
+        res.status(200).json({
+            message: "Password reset successfully"
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Error resetting password",
+            error
+        });
+    }
+};
+
+export const getAllDentists = async (req, res) => {
+    try {
+        const dentists = await prisma.dentist.findMany({
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        emailAddress: true,
+                        userName: true,
+                        address: true,
+                        city: true,
+                        state: true,
+                        phoneNumber: true,
+                        dateOfBirth: true
+                    }
+                }
+            }
+        });
+
+        res.status(200).json({
+            message: "Dentists retrieved successfully",
+            data: dentists
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Error retrieving dentists",
+            error
+        });
+    }
+}
