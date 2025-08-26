@@ -11,7 +11,7 @@ export const createUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password,10)
 
     try{
-        // user details
+        
         const user = await prisma.user.create({
             data:{
                 firstName,
@@ -191,6 +191,8 @@ export const getUserProfile = async (req, res) => {
         });
     }
 };
+
+
 
 export const updateUserProfile = async (req, res) => {
     const userId = parseInt(req.params.id);
@@ -372,3 +374,30 @@ export const getAllDentists = async (req, res) => {
         });
     }
 }
+
+export const getDentistById = async (req, res) => {
+    const userId = req.params.userId;
+
+  try {
+    const dentist = await prisma.dentist.findFirst({
+      where: { userId },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!dentist || dentist.user.role !== "DENTIST") {
+      return res.status(404).json({ message: "Dentist not found" });
+    }
+
+    res.status(200).json({
+      message: "Dentist retrieved successfully",
+      data: dentist,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error retrieving dentist",
+      error: error.message,
+    });
+  }
+};
