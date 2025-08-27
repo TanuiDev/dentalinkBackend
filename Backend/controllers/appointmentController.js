@@ -2,7 +2,7 @@ import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 
-// Get all available dentists
+
 export const getAvailableDentists = async (_req, res) => {
     try {
         const dentists = await prisma.dentist.findMany({
@@ -60,7 +60,7 @@ export const createAppointment = async (req, res) => {
             });
         }
 
-        // Check if time slot is available
+        
         const existingAppointment = await prisma.appointment.findFirst({
             where: {
                 dentistId,
@@ -136,7 +136,7 @@ export const createAppointment = async (req, res) => {
     }
 };
 
-// Get appointments for a specific user (patient or dentist)
+
 export const getUserAppointments = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -145,7 +145,7 @@ export const getUserAppointments = async (req, res) => {
         let appointments;
 
         if (userRole === 'PATIENT') {
-            // Get patient's appointments
+            
             const patient = await prisma.patient.findUnique({
                 where: { userId }
             });
@@ -157,25 +157,12 @@ export const getUserAppointments = async (req, res) => {
             }
 
             appointments = await prisma.appointment.findMany({
-                where: { patientId: patient.id },
-                include: {
-                    dentist: {
-                        include: {
-                            user: {
-                                select: {
-                                    firstName: true,
-                                    lastName: true,
-                                    specialization: true
-                                }
-                            }
-                        }
-                    }
-                },
+                where: { patientId: patient.id },                
                 orderBy: { appointmentDate: 'asc' }
             });
 
         } else if (userRole === 'DENTIST') {
-            // Get dentist's appointments
+            
             const dentist = await prisma.dentist.findUnique({
                 where: { userId }
             });
@@ -188,19 +175,7 @@ export const getUserAppointments = async (req, res) => {
 
             appointments = await prisma.appointment.findMany({
                 where: { dentistId: dentist.id },
-                include: {
-                    patient: {
-                        include: {
-                            user: {
-                                select: {
-                                    firstName: true,
-                                    lastName: true,
-                                    phoneNumber: true
-                                }
-                            }
-                        }
-                    }
-                },
+                
                 orderBy: { appointmentDate: 'asc' }
             });
         } else {
@@ -223,7 +198,7 @@ export const getUserAppointments = async (req, res) => {
     }
 };
 
-// Update appointment status
+
 export const updateAppointmentStatus = async (req, res) => {
     try {
         const { appointmentId } = req.params;
@@ -274,7 +249,7 @@ export const updateAppointmentStatus = async (req, res) => {
     }
 };
 
-// Cancel appointment
+
 export const cancelAppointment = async (req, res) => {
     try {
         const { appointmentId } = req.params;
@@ -374,7 +349,7 @@ export const cancelAppointment = async (req, res) => {
     }
 };
 
-// Get available time slots for a specific dentist and date
+
 export const getAvailableTimeSlots = async (req, res) => {
     try {
         const { dentistId, date } = req.query;
