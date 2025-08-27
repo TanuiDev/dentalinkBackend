@@ -49,9 +49,7 @@ export const createAppointment = async (req, res) => {
         } = req.body;
 
         
-        const patientId = req.user.patientId; // This will come from auth middleware
-
-        // Check if dentist exists
+        const patientId = req.user.patientId; 
         const dentist = await prisma.dentist.findUnique({
             where: { id: dentistId }
         });
