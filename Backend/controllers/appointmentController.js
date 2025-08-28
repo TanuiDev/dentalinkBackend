@@ -97,25 +97,13 @@ export const createAppointment = async (req, res) => {
             include: {
                 patient: {
                     include: {
-                        user: {
-                            select: {
-                                firstName: true,
-                                lastName: true,
-                                emailAddress: true,
-                                phoneNumber: true
-                            }
-                        }
+                        user: {                      }
                     }
                 },
                 dentist: {
                     include: {
                         user: {
-                            select: {
-                                firstName: true,
-                                lastName: true,
-                                emailAddress: true,
-                                phoneNumber: true
-                            }
+                            
                         }
                     }
                 }
@@ -145,7 +133,6 @@ export const getUserAppointments = async (req, res) => {
         let appointments;
 
         if (userRole === 'PATIENT') {
-            
             const patient = await prisma.patient.findUnique({
                 where: { userId }
             });
@@ -157,12 +144,35 @@ export const getUserAppointments = async (req, res) => {
             }
 
             appointments = await prisma.appointment.findMany({
-                where: { patientId: patient.id },                
-                orderBy: { appointmentDate: 'asc' }
+                where: { patientId: patient.id },
+                orderBy: { appointmentDate: 'asc' },
+                include: {
+                    patient: {
+                        include: {
+                            user: {
+                                select: {
+                                    firstName: true,
+                                    lastName: true,
+                                    emailAddress: true
+                                }
+                            }
+                        }
+                    },
+                    dentist: {
+                        include: {
+                            user: {
+                                select: {
+                                    firstName: true,
+                                    lastName: true,
+                                    emailAddress: true
+                                }
+                            }
+                        }
+                    }
+                }
             });
 
         } else if (userRole === 'DENTIST') {
-            
             const dentist = await prisma.dentist.findUnique({
                 where: { userId }
             });
@@ -175,8 +185,31 @@ export const getUserAppointments = async (req, res) => {
 
             appointments = await prisma.appointment.findMany({
                 where: { dentistId: dentist.id },
-                
-                orderBy: { appointmentDate: 'asc' }
+                orderBy: { appointmentDate: 'asc' },
+                include: {
+                    patient: {
+                        include: {
+                            user: {
+                                select: {
+                                    firstName: true,
+                                    lastName: true,
+                                    emailAddress: true
+                                }
+                            }
+                        }
+                    },
+                    dentist: {
+                        include: {
+                            user: {
+                                select: {
+                                    firstName: true,
+                                    lastName: true,
+                                    emailAddress: true
+                                }
+                            }
+                        }
+                    }
+                }
             });
         } else {
             return res.status(403).json({
@@ -197,7 +230,6 @@ export const getUserAppointments = async (req, res) => {
         });
     }
 };
-
 
 export const updateAppointmentStatus = async (req, res) => {
     try {
