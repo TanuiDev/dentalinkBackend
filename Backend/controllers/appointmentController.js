@@ -78,7 +78,7 @@ export const createAppointment = async (req, res) => {
             });
         }
 
-        // Create appointment
+        
         const appointment = await prisma.appointment.create({
             data: {
                 patientId,
@@ -233,11 +233,11 @@ export const getUserAppointments = async (req, res) => {
 
 export const updateAppointmentStatus = async (req, res) => {
     try {
-        const { appointmentId } = req.params;
+        const { id } = req.params;
         const { status, notes } = req.body;
 
         const appointment = await prisma.appointment.update({
-            where: { id: appointmentId },
+            where: { id },
             data: {
                 status,
                 notes: notes || undefined

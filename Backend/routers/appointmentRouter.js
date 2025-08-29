@@ -18,7 +18,7 @@ router.get('/time-slots', getAvailableTimeSlots);
 // Protected routes (authentication required)
 router.post('/create', authenticateToken, requireRole(['PATIENT']), createAppointment);
 router.get('/my-appointments', authenticateToken, getUserAppointments);
-router.patch('/:appointmentId/status', authenticateToken, requireRole(['DENTIST', 'ADMIN']), updateAppointmentStatus);
+router.patch('/:id/status', authenticateToken, requireRole(['DENTIST', 'ADMIN']), updateAppointmentStatus);
 router.patch('/:appointmentId/cancel', authenticateToken, requireRole(['PATIENT', 'DENTIST', 'ADMIN']), cancelAppointment);
 
 export { router as appointmentRouter };

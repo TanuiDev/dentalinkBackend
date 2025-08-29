@@ -6,7 +6,8 @@ const prisma = new PrismaClient();
 export const authenticateToken = async (req, res, next) => {
     try {
         const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1]; 
+        const token = authHeader && authHeader.split(/\s+/)[1];
+        
         if (!token) {
             return res.status(401).json({
                 message: "Access token required"
@@ -14,6 +15,7 @@ export const authenticateToken = async (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+       
         
         //get roles
         const user = await prisma.user.findUnique({
@@ -30,6 +32,8 @@ export const authenticateToken = async (req, res, next) => {
                 message: "User not found"
             });
         }
+
+        
 
         // user info
         req.user = {
