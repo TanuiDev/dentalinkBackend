@@ -250,21 +250,7 @@ export const deleteUser = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
     try {
-        const users = await prisma.user.findMany({
-            select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                emailAddress: true,
-                userName: true,
-                address: true,
-                city: true,
-                state: true,
-                phoneNumber: true,
-                dateOfBirth: true,
-                role: true
-            }
-        });
+        const users = await prisma.user.findMany();
 
         res.status(200).json({
             message: "Users retrieved successfully",

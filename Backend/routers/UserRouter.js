@@ -3,6 +3,7 @@ import {Router} from "express"
 import {createUser,loginUser,getUserProfile,getAllDentists,getAllUsers,deleteUser,updateUserProfile,changePassword,getDentistById} from "../controllers/userContoller.js"
 import {AllfieldsRequired} from "../middlewares/AllfieldsRequired.js"
 import {CheckEmailPassword} from "../middlewares/UniqueFileds.js"
+import { authenticateToken,requireRole } from "../middlewares/authMiddleware.js"
 
 
 
@@ -25,8 +26,8 @@ usersRouter.route('/dentists/:userId')
 .get(getDentistById)
 
 
-usersRouter.route('/all-users')
-.get(getAllUsers)
+usersRouter.route('/users')
+.get(authenticateToken, requireRole(['ADMIN']), getAllUsers);
 usersRouter.route('/delete-user/:id')
 .delete(deleteUser)
 usersRouter.route('/update-profile')
