@@ -28,10 +28,12 @@ usersRouter.route('/dentists/:userId')
 
 usersRouter.route('/users')
 .get(authenticateToken, requireRole(['ADMIN']), getAllUsers);
+usersRouter.route('/profile')
+.get(authenticateToken, requireRole(['PATIENT','DENTIST']), getUserProfile);
 usersRouter.route('/delete-user/:id')
 .delete(deleteUser)
 usersRouter.route('/update-profile')
-.put(updateUserProfile)
+.patch(updateUserProfile)
 usersRouter.route('/change-password')
-.put(changePassword)
+.patch(changePassword)
 

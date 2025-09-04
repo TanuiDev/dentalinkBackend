@@ -237,7 +237,7 @@ model Payment {
 
   rawCallback        Json
 
-  // Relations
+  
   userId             String?
   user               User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
