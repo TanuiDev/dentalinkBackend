@@ -32,7 +32,7 @@ usersRouter.route('/profile')
 usersRouter.route('/delete-user/:id')
 .delete(deleteUser)
 usersRouter.route('/update-profile')
-.patch(updateUserProfile)
+.patch(authenticateToken,updateUserProfile)
 usersRouter.route('/change-password')
 .patch(changePassword)
 

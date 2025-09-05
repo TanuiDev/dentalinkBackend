@@ -205,39 +205,66 @@ export const getUserProfile = async (req, res) => {
 
 
 export const updateUserProfile = async (req, res) => {
-    const userId = parseInt(req.params.id);
-    const { firstName, lastName, address, city, state, phoneNumber } = req.body;
+  const userId = req.user.id;
+  const {
+    firstName,
+    lastName,
+    address,
+    city,
+    state,
+    phoneNumber,
+    roleData // role-specific fields from frontend
+  } = req.body;
 
-    try {
-        const updatedUser = await prisma.user.update({
-            where: { id: userId },
-            data: { firstName, lastName, address, city, state, phoneNumber },
-            select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                emailAddress: true,
-                userName: true,
-                address: true,
-                city: true,
-                state: true,
-                phoneNumber: true,
-                dateOfBirth: true,
-                role: true
-            }
-        });
+  try {
+    // First fetch user role
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
 
-        res.status(200).json({
-            message: "User profile updated successfully",
-            data: updatedUser
-        });
-    } catch (error) {
-        res.status(500).json({
-            message: "Error updating user profile",
-            error
-        });
+    if (!existingUser) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    // Update base user fields
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName,
+        lastName,
+        address,
+        city,
+        state,
+        phoneNumber,
+        ...(roleData &&
+          existingUser.role === "PATIENT" && {
+            patient: { update: roleData }
+          }),
+        ...(roleData &&
+          existingUser.role === "DENTIST" && {
+            dentist: { update: roleData }
+          })
+      },
+      include: {
+        patient: true,
+        dentist: true
+      }
+    });
+
+    res.status(200).json({
+      message: "User profile updated successfully",
+      data: updatedUser
+    });
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    res.status(500).json({
+      message: "Error updating user profile",
+      error
+    });
+  }
 };
+
 
 export const deleteUser = async (req, res) => {
     const userId = parseInt(req.params.id);
