@@ -153,28 +153,54 @@ export const loginUser = async (req, res) => {
 
 
 export const getUserProfile = async (req, res) => {
-    const userId = parseInt(req.params.id);
+  const userId = req.user.id;
+  
 
-    try {
-        const user = await prisma.user.findUnique({
-            where: { id: userId }            
-        });
+  try {
+    // Fetch the user with both possible role relations
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        patient: true,
+        dentist: true,
+      },
+    });
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.status(200).json({
-            message: "User profile retrieved successfully",
-            data: user
-        });
-    } catch (error) {
-        res.status(500).json({
-            message: "Error retrieving user profile",
-            error
-        });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    // Only keep relevant role-specific data
+    let roleData = {};
+    if (user.role === "PATIENT") {
+      roleData = user.patient;
+    } else if (user.role === "DENTIST") {
+      roleData = user.dentist;
+    }
+
+    
+    const userProfile = {
+      ...user,
+      roleData, 
+    };
+
+    // Optionally remove raw `patient` and `dentist` fields
+    delete userProfile.patient;
+    delete userProfile.dentist;
+
+    res.status(200).json({
+      message: "User profile retrieved successfully",
+      data: userProfile,
+    });
+  } catch (error) {
+    console.error("Error retrieving user profile:", error);
+    res.status(500).json({
+      message: "Error retrieving user profile",
+      error,
+    });
+  }
 };
+
 
 
 

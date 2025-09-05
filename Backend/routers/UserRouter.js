@@ -17,8 +17,7 @@ usersRouter.route('/register')
 usersRouter.route('/login')
 .post(loginUser)
 
-usersRouter.route('/profile')
-.get(getUserProfile)
+
 
 usersRouter.route('/dentists')
 .get(getAllDentists)
