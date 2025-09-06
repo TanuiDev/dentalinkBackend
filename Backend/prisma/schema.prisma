@@ -52,11 +52,11 @@ model Patient {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Patient-specific fields
-  emergencyContact String?
-  insuranceProvider String?
-  insuranceNumber   String?
-  medicalHistory    String?
-  allergies         String?
+  emergencyContact String @default("None")
+  insuranceProvider String @default("N/A")
+  insuranceNumber   String @default("None")
+  medicalHistory    String @default("None")
+  allergies         String @default("None")
   
   // Appointments relationship
   appointments Appointment[]
@@ -122,8 +122,8 @@ model Appointment {
   // Medical condition details
   conditionDescription String
   patientAge          Int
-  conditionDuration   String  // e.g., "2 weeks", "3 months"
-  severity            String  // "LOW", "MEDIUM", "HIGH", "URGENT"
+  conditionDuration   String  
+  severity            String  
   
   // Status and notes
   status          String   @default("SCHEDULED") // SCHEDULED, CONFIRMED, CANCELLED, COMPLETED
