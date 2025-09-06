@@ -1,6 +1,8 @@
 import pkg from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import Joi from 'joi';
+
 
 const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
@@ -204,64 +206,150 @@ export const getUserProfile = async (req, res) => {
 
 
 
+
+
+// Define validation schemas for role-specific data
+const patientSchema = Joi.object({
+  emergencyContact: Joi.string().optional(),
+  insuranceProvider: Joi.string().optional(),
+  insuranceNumber: Joi.string().optional(),
+  medicalHistory: Joi.string().optional(),
+  allergies: Joi.string().optional(),
+});
+
+const dentistSchema = Joi.object({
+  dentistId: Joi.string().optional(),
+  specialization: Joi.string().optional(),
+  education: Joi.string().optional(),
+  experience: Joi.number().integer().optional(),
+  bio: Joi.string().optional(),
+  availability: Joi.string().optional(),
+  hourlyRate: Joi.number().precision(2).optional(),
+});
+
+const baseUserSchema = Joi.object({
+  firstName: Joi.string().optional(),
+  lastName: Joi.string().optional(),
+  address: Joi.string().optional(),
+  city: Joi.string().optional(),
+  state: Joi.string().optional(),
+  phoneNumber: Joi.string().optional(),
+  roleData: Joi.object().optional(),
+});
+
 export const updateUserProfile = async (req, res) => {
   const userId = req.user.id;
-  const {
-    firstName,
-    lastName,
-    address,
-    city,
-    state,
-    phoneNumber,
-    roleData // role-specific fields from frontend
-  } = req.body;
+  const { firstName, lastName, address, city, state, phoneNumber, roleData } = req.body;
 
   try {
-    // First fetch user role
+    // Validate base user input
+    const { error: baseError } = baseUserSchema.validate(req.body);
+    if (baseError) {
+      return res.status(400).json({ message: 'Invalid input', error: baseError.details });
+    }
+
+    // Fetch user role
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true }
+      select: { role: true },
     });
 
     if (!existingUser) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update base user fields
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        firstName,
-        lastName,
-        address,
-        city,
-        state,
-        phoneNumber,
-        ...(roleData &&
-          existingUser.role === "PATIENT" && {
-            patient: { update: roleData }
-          }),
-        ...(roleData &&
-          existingUser.role === "DENTIST" && {
-            dentist: { update: roleData }
-          })
-      },
-      include: {
-        patient: true,
-        dentist: true
+    // Validate role-specific data
+    if (roleData) {
+      if (existingUser.role === 'PATIENT') {
+        const { error } = patientSchema.validate(roleData);
+        if (error) {
+          return res.status(400).json({ message: 'Invalid patient data', error: error.details });
+        }
+      } else if (existingUser.role === 'DENTIST') {
+        const { error } = dentistSchema.validate(roleData);
+        if (error) {
+          return res.status(400).json({ message: 'Invalid dentist data', error: error.details });
+        }
+      } else {
+        return res.status(400).json({ message: 'Role-specific data not supported for this user role' });
       }
+    }
+
+    // Prepare base user data for update
+    const userData = {
+      firstName,
+      lastName,
+      address,
+      city,
+      state,
+      phoneNumber,
+    };
+
+    // Remove undefined or null fields
+    const filteredUserData = Object.fromEntries(
+      Object.entries(userData).filter(([_, value]) => value != null)
+    );
+
+    // Perform update in a transaction
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      return tx.user.update({
+        where: { id: userId },
+        data: {
+          ...filteredUserData,
+          ...(roleData &&
+            existingUser.role === 'PATIENT' && {
+              patient: { update: roleData },
+            }),
+          ...(roleData &&
+            existingUser.role === 'DENTIST' && {
+              dentist: { update: roleData },
+            }),
+        },
+        select: {
+          id: true,
+          emailAddress: true,
+          firstName: true,
+          lastName: true,
+          userName: true,
+          phoneNumber: true,
+          address: true,
+          city: true,
+          state: true,
+          role: true,
+          patient: {
+            select: {
+              emergencyContact: true,
+              insuranceProvider: true,
+              insuranceNumber: true,
+              medicalHistory: true,
+              allergies: true,
+            },
+          },
+          dentist: {
+            select: {
+              dentistId: true,
+              specialization: true,
+              education: true,
+              experience: true,
+              bio: true,
+              availability: true,
+              hourlyRate: true,
+            },
+          },
+        },
+      });
     });
 
     res.status(200).json({
-      message: "User profile updated successfully",
-      data: updatedUser
+      message: 'User profile updated successfully',
+      data: updatedUser,
     });
   } catch (error) {
-    console.error("Error updating user profile:", error);
-    res.status(500).json({
-      message: "Error updating user profile",
-      error
-    });
+    console.error('Error updating user profile:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      return res.status(400).json({ message: 'Database error', error: error.message });
+    }
+    res.status(500).json({ message: 'Error updating user profile', error: error.message });
   }
 };
 
