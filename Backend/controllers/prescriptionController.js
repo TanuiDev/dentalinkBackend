@@ -78,18 +78,47 @@ export const createPrescription = async (req, res) => {
 
 
 
-export const getPrescription = async (req, res) =>{
-    try {
-        const { prescriptionId } = req.params;
-        const prescription = await prisma.prescription.findUnique({
-            where: { id: prescriptionId },
-        });
+export const getPrescription = async (req, res) => {
+  try {
+    const { prescriptionId } = req.params;
+
+    const prescription = await prisma.prescription.findUnique({
+      where: { id: prescriptionId },
+      include: {
+        medications: true,
+        appointment: {
+          include: {
+            patient: { include: { user: true } },
+            dentist: { include: { user: true } },
+          },
+        },
+      },
+    });
+
+    if (!prescription) {
+      return res.status(404).json({ message: "Prescription not found" });
     }
-    catch (error) {
-        console.error("Error getting prescription:", error);
-        res.status(500).json({ message: "Internal server error" });
+
+    
+    const userId = req.user.id;
+    const role = req.user.role;
+
+    const isPatient =
+      prescription.appointment?.patient?.userId === userId && role === "PATIENT";
+    const isDentist =
+      prescription.appointment?.dentist?.userId === userId && role === "DENTIST";
+
+    if (!isPatient && !isDentist && role !== "ADMIN") {
+      return res.status(403).json({ message: "Not authorized to view this prescription" });
     }
+
+    res.json({ data: prescription });
+  } catch (error) {
+    console.error("Error getting prescription:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
+
 
 export const getUserPrescriptions = async (req, res) => {
   const userId = req.user.id;

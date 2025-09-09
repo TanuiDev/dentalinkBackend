@@ -9,7 +9,7 @@ import {
 
 const router = express.Router();
 
-// All prescription routes require authentication
+
 router.use(authenticateToken);
 
 
