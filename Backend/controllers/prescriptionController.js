@@ -4,28 +4,40 @@ const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 
 
+
 export const createPrescription = async (req, res) => {
   try {
-    const { appointmentId } = req.params; // consultation/appointment id
+    const { appointmentId } = req.params; 
     const { diagnosis, notes, expiryDate, medications } = req.body;
+
     
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { patient: true, dentist: true },
+      include: {
+        patient: { include: { user: true } },
+        dentist: { include: { user: true } },
+      },
     });
 
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
+    if (appointment.status !== "CONFIRMED") {
+      return res.status(400).json({
+        message:
+          "Prescription can only be created for confirmed consultations",
+      });
+    }
+
     
     const prescription = await prisma.prescription.create({
       data: {
-        appointmentId,
+        appointmentId: appointment.id,
         diagnosis,
         notes,
         expiryDate: new Date(expiryDate),
-        prescriptionNumber: `RX-${Date.now()}`, 
+        prescriptionNumber: `RX-${Date.now()}`,
         medications: {
           create: medications.map((med, index) => ({
             medicationName: med.medicationName,
@@ -42,8 +54,18 @@ export const createPrescription = async (req, res) => {
           })),
         },
       },
-      include: { medications: true },
-    });   
+      include: {
+        medications: true,
+        appointment: {
+          include: {
+            patient: { include: { user: true } },
+            dentist: { include: { user: true } },
+          },
+        },
+      },
+    });
+
+   
     res.status(201).json({
       message: "Prescription created successfully",
       prescription,
@@ -53,6 +75,8 @@ export const createPrescription = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
 
 export const getPrescription = async (req, res) =>{
     try {
@@ -67,15 +91,60 @@ export const getPrescription = async (req, res) =>{
     }
 };
 
-export const getUserPrescriptions = async (req, res) =>{
-    try {
-        const prescriptions = await prisma.prescription.findMany({
-            where: { userId: req.user.id },
-        });
+export const getUserPrescriptions = async (req, res) => {
+  const userId = req.user.id;
+  const role = req.user.role;
+
+  try {
+    let prescriptions;
+
+    if (role === "PATIENT") {
+      prescriptions = await prisma.prescription.findMany({
+        where: {
+          appointment: {
+            patient: {
+              userId: userId,
+            },
+          },
+        },
+        include: {
+          medications: true,
+          appointment: {
+            include: {
+              patient: { include: { user: true } },
+              dentist: { include: { user: true } },
+            },
+          },
+        },
+      });
+    } else if (role === "DENTIST") {
+      prescriptions = await prisma.prescription.findMany({
+        where: {
+          appointment: {
+            dentist: {
+              userId: userId,
+            },
+          },
+        },
+        include: {
+          medications: true,
+          appointment: {
+            include: {
+              patient: { include: { user: true } },
+              dentist: { include: { user: true } },
+            },
+          },
+        },
+      });
+    } else {
+      return res.status(403).json({ message: "Unauthorized" });
     }
-    catch (error) {
-        console.error("Error getting user prescriptions:", error);
-        res.status(500).json({ message: "Internal server error" });
-    }
-}
+
+    res.json({ data: prescriptions });
+  } catch (error) {
+    console.error("Error getting user prescriptions:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 

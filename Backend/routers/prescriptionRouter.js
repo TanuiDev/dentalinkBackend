@@ -19,7 +19,7 @@ router.post(
   createPrescription
 );
 
-router.get('/my-prescriptions', getUserPrescriptions);
+router.get('/my-prescriptions',authenticateToken, getUserPrescriptions);
 
 
 router.get('/:prescriptionId', requireRole(['PATIENT', 'DENTIST']), getPrescription);
