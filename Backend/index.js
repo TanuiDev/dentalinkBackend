@@ -5,6 +5,7 @@ import {appointmentRouter} from "./routers/appointmentRouter.js"
 // import {prescriptionRouter} from "./routers/prescriptionRouter.js"
 
 import {mpesaStkPushRouter} from "./routers/mpesaSTK.Push.js"
+import {prescriptionRouter} from "./routers/prescriptionRouter.js"
 
 import cors from 'cors'
 import cookieParser from 'cookie-parser';
@@ -28,6 +29,7 @@ app.use(cors(
 app.use('/auth',usersRouter)
 app.use('/appointments',appointmentRouter)
 app.use('/mpesa',mpesaStkPushRouter)
+app.use('/prescriptions',prescriptionRouter)
 // app.use('/prescriptions',prescriptionRouter)
 
 
