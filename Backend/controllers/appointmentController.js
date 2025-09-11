@@ -49,51 +49,69 @@ export const createAppointment = async (req, res) => {
 
     const patientId = req.user.patientId; // logged in patient
 
-    // Step 1: Find an available dentist (no overlapping appointments)
-    const availableDentist = await prisma.dentist.findFirst({
-      where: {
-        appointments: {
-          none: {
-            appointmentDate: new Date(appointmentDate),
-            timeSlot,
-            status: { in: ['SCHEDULED', 'CONFIRMED'] }
-          }
+
+        // Step 1: Find all dentists who are available for the requested time slot
+        const availableDentists = await prisma.dentist.findMany({
+            where: {
+                appointments: {
+                    none: {
+                        appointmentDate: new Date(appointmentDate),
+                        timeSlot,
+                        status: { in: ['SCHEDULED', 'CONFIRMED'] }
+                    }
+                }
+            },
+            include: {
+                appointments: {
+                    where: {
+                        status: { in: ['SCHEDULED', 'CONFIRMED'] }
+                    }
+                }
+            }
+        });
+
+        if (!availableDentists || availableDentists.length === 0) {
+            return res.status(400).json({
+                message: "No available dentist for this time slot"
+            });
         }
-      }
-    });
 
-    if (!availableDentist) {
-      return res.status(400).json({
-        message: "No available dentist for this time slot"
-      });
-    }
+        // Step 2: Assign the dentist with the fewest scheduled/confimed appointments (load balancing)
+        let assignedDentist = availableDentists[0];
+        let minAppointments = assignedDentist.appointments.length;
+        for (const dentist of availableDentists) {
+            if (dentist.appointments.length < minAppointments) {
+                assignedDentist = dentist;
+                minAppointments = dentist.appointments.length;
+            }
+        }
 
-    // Step 2: Create appointment with assigned dentist
-    const appointment = await prisma.appointment.create({
-      data: {
-        patientId,
-        dentistId: availableDentist.id,
-        appointmentDate: new Date(appointmentDate),
-        timeSlot,
-        duration: parseInt(duration),
-        appointmentType,
-        conditionDescription,
-        patientAge: parseInt(patientAge),
-        conditionDuration,
-        severity,
-        notes,
-        status: 'SCHEDULED'
-      },
-      include: {
-        patient: { include: { user: true } },
-        dentist: { include: { user: true } }
-      }
-    });
+        // Step 3: Create appointment with assigned dentist
+        const appointment = await prisma.appointment.create({
+            data: {
+                patientId,
+                dentistId: assignedDentist.id,
+                appointmentDate: new Date(appointmentDate),
+                timeSlot,
+                duration: parseInt(duration),
+                appointmentType,
+                conditionDescription,
+                patientAge: parseInt(patientAge),
+                conditionDuration,
+                severity,
+                notes,
+                status: 'SCHEDULED'
+            },
+            include: {
+                patient: { include: { user: true } },
+                dentist: { include: { user: true } }
+            }
+        });
 
-    res.status(201).json({
-      message: "Appointment created successfully",
-      data: appointment
-    });
+        res.status(201).json({
+            message: "Appointment created successfully",
+            data: appointment
+        });
 
   } catch (error) {
     console.error('Error creating appointment:', error);
