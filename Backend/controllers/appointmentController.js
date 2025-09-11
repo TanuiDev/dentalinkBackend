@@ -34,94 +34,74 @@ export const getAvailableDentists = async (_req, res) => {
 
 
 export const createAppointment = async (req, res) => {
-    try {
-        const {
-            dentistId,
-            appointmentDate,
+  try {
+    const {
+      appointmentDate,
+      timeSlot,
+      duration,
+      appointmentType,
+      conditionDescription,
+      patientAge,
+      conditionDuration,
+      severity,
+      notes
+    } = req.body;
+
+    const patientId = req.user.patientId; // logged in patient
+
+    // Step 1: Find an available dentist (no overlapping appointments)
+    const availableDentist = await prisma.dentist.findFirst({
+      where: {
+        appointments: {
+          none: {
+            appointmentDate: new Date(appointmentDate),
             timeSlot,
-            duration,
-            appointmentType,
-            conditionDescription,
-            patientAge,
-            conditionDuration,
-            severity,
-            notes
-        } = req.body;
-
-        
-        const patientId = req.user.patientId; 
-        const dentist = await prisma.dentist.findUnique({
-            where: { id: dentistId }
-        });
-
-        if (!dentist) {
-            return res.status(404).json({
-                message: "Dentist not found"
-            });
+            status: { in: ['SCHEDULED', 'CONFIRMED'] }
+          }
         }
+      }
+    });
 
-        
-        const existingAppointment = await prisma.appointment.findFirst({
-            where: {
-                dentistId,
-                appointmentDate: new Date(appointmentDate),
-                timeSlot,
-                status: {
-                    in: ['SCHEDULED', 'CONFIRMED']
-                }
-            }
-        });
-
-        if (existingAppointment) {
-            return res.status(400).json({
-                message: "This time slot is already booked"
-            });
-        }
-
-        
-        const appointment = await prisma.appointment.create({
-            data: {
-                patientId,
-                dentistId,
-                appointmentDate: new Date(appointmentDate),
-                timeSlot,
-                duration: parseInt(duration),
-                appointmentType,
-                conditionDescription,
-                patientAge: parseInt(patientAge),
-                conditionDuration,
-                severity,
-                notes,
-                status: 'SCHEDULED'
-            },
-            include: {
-                patient: {
-                    include: {
-                        user: {                      }
-                    }
-                },
-                dentist: {
-                    include: {
-                        user: {
-                            
-                        }
-                    }
-                }
-            }
-        });
-
-        res.status(201).json({
-            message: "Appointment created successfully",
-            data: appointment
-        });
-
-    } catch (error) {
-        console.error('Error creating appointment:', error);
-        res.status(500).json({
-            message: "Error creating appointment",
-            error: error.message
-        });
+    if (!availableDentist) {
+      return res.status(400).json({
+        message: "No available dentist for this time slot"
+      });
     }
+
+    // Step 2: Create appointment with assigned dentist
+    const appointment = await prisma.appointment.create({
+      data: {
+        patientId,
+        dentistId: availableDentist.id,
+        appointmentDate: new Date(appointmentDate),
+        timeSlot,
+        duration: parseInt(duration),
+        appointmentType,
+        conditionDescription,
+        patientAge: parseInt(patientAge),
+        conditionDuration,
+        severity,
+        notes,
+        status: 'SCHEDULED'
+      },
+      include: {
+        patient: { include: { user: true } },
+        dentist: { include: { user: true } }
+      }
+    });
+
+    res.status(201).json({
+      message: "Appointment created successfully",
+      data: appointment
+    });
+
+  } catch (error) {
+    console.error('Error creating appointment:', error);
+    res.status(500).json({
+      message: "Error creating appointment",
+      error: error.message
+    });
+  }
 };
 
 
