@@ -25,6 +25,11 @@ io.on("connection", (socket) => {
       socket.to(r).emit("peer-ready", { socketId: socket.id });
     });
 
+    // When a peer ends the call, notify others and allow client to handle ejection
+    socket.on("end-call", ({ roomId: r }) => {
+      socket.to(r).emit("end-call", { socketId: socket.id });
+    });
+
     socket.on("signal-offer", ({ roomId: r, offer }) => {
       socket.to(r).emit("signal-offer", { offer, from: socket.id });
     });
