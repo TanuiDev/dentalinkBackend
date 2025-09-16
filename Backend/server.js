@@ -20,6 +20,11 @@ io.on("connection", (socket) => {
     socket.join(roomId);
     socket.to(roomId).emit("peer-joined", { socketId: socket.id });
 
+    // When a peer signals readiness (e.g., after reload), notify others to start offer flow
+    socket.on("ready", ({ roomId: r }) => {
+      socket.to(r).emit("peer-ready", { socketId: socket.id });
+    });
+
     socket.on("signal-offer", ({ roomId: r, offer }) => {
       socket.to(r).emit("signal-offer", { offer, from: socket.id });
     });
