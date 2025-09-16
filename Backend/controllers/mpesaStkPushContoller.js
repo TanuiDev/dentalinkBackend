@@ -202,3 +202,35 @@ export const handleSTKPushCallback = (req, res) => {
     });
   }
 };
+
+export const getPaymentStatus = async (req, res) => {
+  try {
+    const { checkoutRequestId } = req.query;
+    if (!checkoutRequestId) {
+      return res.status(400).json({ message: 'checkoutRequestId is required' });
+    }
+
+    const payment = await prisma.payment.findUnique({
+      where: { checkoutRequestId: String(checkoutRequestId) },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        status: payment.status,
+        resultCode: payment.resultCode,
+        resultDesc: payment.resultDesc,
+        mpesaReceiptNumber: payment.mpesaReceiptNumber,
+        transactionDate: payment.transactionDate,
+        amount: payment.amount,
+        phoneNumber: payment.phoneNumber,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Error fetching payment status', error: err.message });
+  }
+};
