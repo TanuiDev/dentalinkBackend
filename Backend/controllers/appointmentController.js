@@ -457,7 +457,6 @@ export const updateAppointmentMeeting = async (req, res) => {
       return res.status(400).json({ message: 'videoChatLink is required' });
     }
 
-    // Load appointment to enforce ownership
     const appt = await prisma.appointment.findUnique({
       where: { id },
       include: { dentist: { include: { user: true } }, patient: { include: { user: true } } },
@@ -465,7 +464,11 @@ export const updateAppointmentMeeting = async (req, res) => {
 
     if (!appt) return res.status(404).json({ message: 'Appointment not found' });
 
-    // Only assigned dentist or admin can set link
+    // Disallow changing link once set
+    if (appt.videoChatLink) {
+      return res.status(400).json({ message: 'Meeting link already set and cannot be changed' });
+    }
+
     const isAdmin = req.user.role === 'ADMIN';
     const isAssignedDentist = !!appt.dentist && req.user.dentistId === appt.dentist.id;
     if (!isAdmin && !isAssignedDentist) {
@@ -477,7 +480,6 @@ export const updateAppointmentMeeting = async (req, res) => {
       data: {
         videoChatLink,
         meetingPassword: meetingPassword || undefined,
-        // Optionally auto-confirm if not yet confirmed
         status: appt.status === 'SCHEDULED' ? 'CONFIRMED' : appt.status,
       },
       include: {
