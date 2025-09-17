@@ -23,10 +23,10 @@ export const createPrescription = async (req, res) => {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
-    if (appointment.status !== "CONFIRMED") {
+    if (appointment.status !== "COMPLETED") {
       return res.status(400).json({
         message:
-          "Prescription can only be created for confirmed consultations",
+          "Prescription can only be created for completed consultations",
       });
     }
 
