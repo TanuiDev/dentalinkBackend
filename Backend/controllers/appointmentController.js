@@ -47,6 +47,24 @@ export const createAppointment = async (req, res) => {
       notes
     } = req.body;
 
+    // Validate date/time is not in the past
+    const baseDate = new Date(appointmentDate);
+    if (Number.isNaN(baseDate.getTime())) {
+      return res.status(400).json({ message: 'Invalid appointmentDate' });
+    }
+    const [hoursStr, minutesStr] = String(timeSlot || '').split(':');
+    const hours = Number(hoursStr);
+    const minutes = Number(minutesStr);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+      return res.status(400).json({ message: 'Invalid timeSlot' });
+    }
+    const requestedDateTime = new Date(baseDate);
+    requestedDateTime.setHours(hours, minutes, 0, 0);
+    const now = new Date();
+    if (requestedDateTime.getTime() < now.getTime()) {
+      return res.status(400).json({ message: 'Appointment time must be in the future' });
+    }
+
     let patientId = req.user.patientId; // logged in patient
 
     // Ensure patient profile exists
