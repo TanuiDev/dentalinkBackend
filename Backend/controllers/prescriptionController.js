@@ -3,14 +3,17 @@ import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 
-
+function getDefaultExpiryDate(days = 30) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d;
+}
 
 export const createPrescription = async (req, res) => {
   try {
     const { appointmentId } = req.params; 
     const { diagnosis, notes, expiryDate, medications } = req.body;
 
-    
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
@@ -25,33 +28,50 @@ export const createPrescription = async (req, res) => {
 
     if (appointment.status !== "COMPLETED") {
       return res.status(400).json({
-        message:
-          "Prescription can only be created for completed consultations",
+        message: "Prescription can only be created for completed consultations",
       });
     }
 
-    
+    // Validate medications
+    if (!Array.isArray(medications) || medications.length === 0) {
+      return res.status(400).json({ message: "At least one medication is required" });
+    }
+
+    const sanitizedMeds = medications
+      .map((m, index) => ({
+        medicationName: String(m.medicationName || '').trim(),
+        dosage: String(m.dosage || '').trim(),
+        frequency: String(m.frequency || '').trim(),
+        duration: String(m.duration || '').trim(),
+        instructions: m.instructions ? String(m.instructions) : undefined,
+        quantity: Number(m.quantity || 0),
+        refills: m.refills ? Number(m.refills) : 0,
+        medicationCode: m.medicationCode ? String(m.medicationCode) : null,
+        dosageForm: m.dosageForm ? String(m.dosageForm) : null,
+        strength: m.strength ? String(m.strength) : null,
+        orderOfUse: index + 1,
+      }))
+      .filter(m => m.medicationName && m.dosage && m.frequency && m.duration && m.quantity > 0);
+
+    if (sanitizedMeds.length === 0) {
+      return res.status(400).json({ message: "Medication entries are incomplete or invalid" });
+    }
+
+    // Parse expiry with default
+    let parsedExpiry = expiryDate ? new Date(expiryDate) : getDefaultExpiryDate(30);
+    if (Number.isNaN(parsedExpiry.getTime())) {
+      parsedExpiry = getDefaultExpiryDate(30);
+    }
+
     const prescription = await prisma.prescription.create({
       data: {
         appointmentId: appointment.id,
-        diagnosis,
-        notes,
-        expiryDate: new Date(expiryDate),
+        diagnosis: diagnosis || null,
+        notes: notes || null,
+        expiryDate: parsedExpiry,
         prescriptionNumber: `RX-${Date.now()}`,
         medications: {
-          create: medications.map((med, index) => ({
-            medicationName: med.medicationName,
-            dosage: med.dosage,
-            frequency: med.frequency,
-            duration: med.duration,
-            instructions: med.instructions,
-            quantity: med.quantity,
-            refills: med.refills || 0,
-            medicationCode: med.medicationCode || null,
-            dosageForm: med.dosageForm || null,
-            strength: med.strength || null,
-            orderOfUse: index + 1,
-          })),
+          create: sanitizedMeds,
         },
       },
       include: {
@@ -65,14 +85,13 @@ export const createPrescription = async (req, res) => {
       },
     });
 
-   
     res.status(201).json({
       message: "Prescription created successfully",
       prescription,
     });
   } catch (error) {
     console.error("Error creating prescription:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
 
