@@ -13,6 +13,7 @@ export const createUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password,10)
 
     try{
+        const effectiveRole = role || 'PATIENT';
         
         const user = await prisma.user.create({
             data:{
@@ -26,13 +27,13 @@ export const createUser = async (req, res) => {
                 state,
                 phoneNumber,
                 dateOfBirth: new Date(dateOfBirth),
-                role: role || 'PATIENT'
+                role: effectiveRole
             }
         })
         
         // Create role-specific profile
         let profile;
-        if (role === 'DENTIST') {
+        if (effectiveRole === 'DENTIST') {
             profile = await prisma.dentist.create({
                 data: {
                     userId: user.id,
@@ -45,7 +46,7 @@ export const createUser = async (req, res) => {
                     hourlyRate: parseFloat(roleSpecificData.hourlyRate)
                 }
             });
-        } else if (role === 'PATIENT') {
+        } else if (effectiveRole === 'PATIENT') {
             profile = await prisma.patient.create({
                 data: {
                     userId: user.id,
@@ -56,7 +57,7 @@ export const createUser = async (req, res) => {
                     allergies: roleSpecificData.allergies
                 }
             });
-        } else if (role === 'ADMIN') {
+        } else if (effectiveRole === 'ADMIN') {
             profile = await prisma.admin.create({
                 data: {
                     userId: user.id,
@@ -290,54 +291,60 @@ export const updateUserProfile = async (req, res) => {
       Object.entries(userData).filter(([_, value]) => value != null)
     );
 
-    // Perform update in a transaction
-    const updatedUser = await prisma.$transaction(async (tx) => {
-      return tx.user.update({
-        where: { id: userId },
-        data: {
-          ...filteredUserData,
-          ...(roleData &&
-            existingUser.role === 'PATIENT' && {
-              patient: { update: roleData },
-            }),
-          ...(roleData &&
-            existingUser.role === 'DENTIST' && {
-              dentist: { update: roleData },
-            }),
-        },
-        select: {
-          id: true,
-          emailAddress: true,
-          firstName: true,
-          lastName: true,
-          userName: true,
-          phoneNumber: true,
-          address: true,
-          city: true,
-          state: true,
-          role: true,
+    // Perform update with upsert for role-specific profile
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...filteredUserData,
+        ...(roleData && existingUser.role === 'PATIENT' && {
           patient: {
-            select: {
-              emergencyContact: true,
-              insuranceProvider: true,
-              insuranceNumber: true,
-              medicalHistory: true,
-              allergies: true,
+            upsert: {
+              create: roleData,
+              update: roleData,
             },
           },
+        }),
+        ...(roleData && existingUser.role === 'DENTIST' && {
           dentist: {
-            select: {
-              dentistId: true,
-              specialization: true,
-              education: true,
-              experience: true,
-              bio: true,
-              availability: true,
-              hourlyRate: true,
+            upsert: {
+              create: roleData,
+              update: roleData,
             },
+          },
+        }),
+      },
+      select: {
+        id: true,
+        emailAddress: true,
+        firstName: true,
+        lastName: true,
+        userName: true,
+        phoneNumber: true,
+        address: true,
+        city: true,
+        state: true,
+        role: true,
+        patient: {
+          select: {
+            emergencyContact: true,
+            insuranceProvider: true,
+            insuranceNumber: true,
+            medicalHistory: true,
+            allergies: true,
           },
         },
-      });
+        dentist: {
+          select: {
+            dentistId: true,
+            specialization: true,
+            education: true,
+            experience: true,
+            bio: true,
+            availability: true,
+            hourlyRate: true,
+          },
+        },
+      },
     });
 
     res.status(200).json({
