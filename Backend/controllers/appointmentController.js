@@ -447,3 +447,48 @@ export const getAvailableTimeSlots = async (req, res) => {
         });
     }
 };
+
+export const updateAppointmentMeeting = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { videoChatLink, meetingPassword } = req.body;
+
+    if (!videoChatLink || typeof videoChatLink !== 'string') {
+      return res.status(400).json({ message: 'videoChatLink is required' });
+    }
+
+    // Load appointment to enforce ownership
+    const appt = await prisma.appointment.findUnique({
+      where: { id },
+      include: { dentist: { include: { user: true } }, patient: { include: { user: true } } },
+    });
+
+    if (!appt) return res.status(404).json({ message: 'Appointment not found' });
+
+    // Only assigned dentist or admin can set link
+    const isAdmin = req.user.role === 'ADMIN';
+    const isAssignedDentist = !!appt.dentist && req.user.dentistId === appt.dentist.id;
+    if (!isAdmin && !isAssignedDentist) {
+      return res.status(403).json({ message: 'Not authorized to update this appointment' });
+    }
+
+    const updated = await prisma.appointment.update({
+      where: { id },
+      data: {
+        videoChatLink,
+        meetingPassword: meetingPassword || undefined,
+        // Optionally auto-confirm if not yet confirmed
+        status: appt.status === 'SCHEDULED' ? 'CONFIRMED' : appt.status,
+      },
+      include: {
+        patient: { include: { user: true } },
+        dentist: { include: { user: true } },
+      },
+    });
+
+    return res.json({ message: 'Meeting link updated', data: updated });
+  } catch (error) {
+    console.error('Error updating meeting link:', error);
+    return res.status(500).json({ message: 'Error updating meeting link', error: error.message });
+  }
+};

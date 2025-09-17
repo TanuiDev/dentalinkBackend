@@ -5,7 +5,8 @@ import {
     getUserAppointments,
     updateAppointmentStatus,
     cancelAppointment,
-    getAvailableTimeSlots
+    getAvailableTimeSlots,
+    updateAppointmentMeeting
 } from '../controllers/appointmentController.js';
 import { authenticateToken, requireRole } from '../middlewares/authMiddleware.js';
 
@@ -20,5 +21,6 @@ router.post('/create', authenticateToken, requireRole(['PATIENT']), createAppoin
 router.get('/my-appointments', authenticateToken, getUserAppointments);
 router.patch('/:id/status', authenticateToken, requireRole(['DENTIST', 'ADMIN']), updateAppointmentStatus);
 router.patch('/:appointmentId/cancel', authenticateToken, requireRole(['PATIENT', 'DENTIST', 'ADMIN']), cancelAppointment);
+router.patch('/:id/meeting', authenticateToken, requireRole(['DENTIST', 'ADMIN']), updateAppointmentMeeting);
 
 export { router as appointmentRouter };
