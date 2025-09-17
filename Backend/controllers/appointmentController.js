@@ -47,8 +47,16 @@ export const createAppointment = async (req, res) => {
       notes
     } = req.body;
 
-    const patientId = req.user.patientId; // logged in patient
+    let patientId = req.user.patientId; // logged in patient
 
+    // Ensure patient profile exists
+    if (!patientId) {
+      const patient = await prisma.patient.findUnique({ where: { userId: req.user.id } });
+      if (!patient) {
+        return res.status(404).json({ message: 'Patient profile not found' });
+      }
+      patientId = patient.id;
+    }
 
         // Step 1: Find all dentists who are available for the requested time slot
         const availableDentists = await prisma.dentist.findMany({
@@ -201,8 +209,7 @@ export const getUserAppointments = async (req, res) => {
                             user: {
                                 select: {
                                     firstName: true,
-                                    lastName: true,
-                                    emailAddress: true
+                                    lastName: true
                                 }
                             }
                         }
