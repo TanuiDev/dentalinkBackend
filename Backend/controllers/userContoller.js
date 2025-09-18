@@ -481,7 +481,8 @@ export const requestPasswordReset = async (req, res) => {
             return res.status(404).json({ message: "Email not found. Enter the correct email." });
         }
 
-        const token = jwt.sign({ userId: user.id, emailAddress }, process.env.JWT_SECRET_KEY, { expiresIn: '30m' });
+        const tokenTtl = process.env.PASSWORD_RESET_TTL || '1h';
+        const token = jwt.sign({ userId: user.id, emailAddress }, process.env.JWT_SECRET_KEY, { expiresIn: tokenTtl });
         const frontendUrl = process.env.FRONTEND_URL || 'https://smile-access-hub.vercel.app';
         const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
