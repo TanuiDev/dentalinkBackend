@@ -1,21 +1,38 @@
 import nodemailer from 'nodemailer';
 
-// Email configuration for e-prescriptions
+// Email configuration for e-prescriptions and password reset
 export const createEmailTransporter = () => {
     // For development/testing, you can use Gmail or other services
     // For production, consider using services like SendGrid, AWS SES, etc.
-    
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
         service: process.env.EMAIL_SERVICE || 'gmail',
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASSWORD
-        },
-        // For Gmail, you might need to use an App Password
-        // For other services, adjust accordingly
+        }
     });
 
     return transporter;
+};
+
+export const sendPasswordResetEmail = async (toEmail, resetLink) => {
+    const transporter = createEmailTransporter();
+    const mailOptions = {
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        to: toEmail,
+        subject: 'Reset your password',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2c3e50;">Password Reset Request</h2>
+                <p>We received a request to reset your password. Click the button below to set a new password. This link will expire in 30 minutes.</p>
+                <p style="text-align:center;margin:24px 0;">
+                  <a href="${resetLink}" style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;display:inline-block;">Reset Password</a>
+                </p>
+                <p>If you did not request this, you can safely ignore this email.</p>
+            </div>
+        `
+    };
+    await transporter.sendMail(mailOptions);
 };
 
 // Email templates for e-prescriptions

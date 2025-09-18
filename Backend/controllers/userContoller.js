@@ -2,6 +2,7 @@ import pkg from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import Joi from 'joi';
+import { sendPasswordResetEmail } from "../config/email.js";
 
 
 const { PrismaClient } = pkg;
@@ -209,7 +210,7 @@ export const getUserProfile = async (req, res) => {
 
 
 
-// Define validation schemas for role-specific data
+
 const patientSchema = Joi.object({
   emergencyContact: Joi.string().optional(),
   insuranceProvider: Joi.string().optional(),
@@ -432,20 +433,22 @@ export const changePassword = async (req, res) => {
 };
 
 export const resetPassword = async (req, res) => {
-    const { emailAddress, newPassword } = req.body;
+    const { token, newPassword } = req.body;
 
     try {
-        const user = await prisma.user.findUnique({
-            where: { emailAddress }
-        });
+        if (!token || !newPassword) {
+            return res.status(400).json({ message: "Token and new password are required" });
+        }
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+        const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+        const userId = decoded?.userId;
+        if (!userId) {
+            return res.status(400).json({ message: "Invalid token" });
         }
 
         const hashedNewPassword = await bcrypt.hash(newPassword, 10);
         await prisma.user.update({
-            where: { emailAddress },
+            where: { id: userId },
             data: { password: hashedNewPassword }
         });
 
@@ -453,10 +456,40 @@ export const resetPassword = async (req, res) => {
             message: "Password reset successfully"
         });
     } catch (error) {
+        if (error?.name === 'TokenExpiredError') {
+            return res.status(400).json({ message: "Reset link has expired" });
+        }
+        if (error?.name === 'JsonWebTokenError') {
+            return res.status(400).json({ message: "Invalid reset token" });
+        }
         res.status(500).json({
             message: "Error resetting password",
-            error
+            error: error?.message || error
         });
+    }
+};
+
+export const requestPasswordReset = async (req, res) => {
+    const { emailAddress } = req.body;
+    try {
+        if (!emailAddress) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
+        const user = await prisma.user.findUnique({ where: { emailAddress } });
+        if (!user) {
+            return res.status(404).json({ message: "Email not found. Enter the correct email." });
+        }
+
+        const token = jwt.sign({ userId: user.id, emailAddress }, process.env.JWT_SECRET_KEY, { expiresIn: '30m' });
+        const frontendUrl = process.env.FRONTEND_URL || 'https://smile-access-hub.vercel.app';
+        const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+        await sendPasswordResetEmail(emailAddress, resetLink);
+
+        res.status(200).json({ message: "Reset link sent to your email" });
+    } catch (error) {
+        res.status(500).json({ message: "Error requesting password reset", error: error?.message || error });
     }
 };
 
