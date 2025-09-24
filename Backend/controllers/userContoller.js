@@ -101,7 +101,8 @@ export const loginUser = async (req, res) => {
                 OR:[
                     {emailAddress:identifier},
                     {userName:identifier}
-                ]
+                ],
+                isDeleted: false
             }
         })
         if(!user){
@@ -163,7 +164,9 @@ export const getUserProfile = async (req, res) => {
   try {
    
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId,
+        isDeleted: false
+       },
       include: {
         patient: true,
         dentist: true,
@@ -189,8 +192,8 @@ export const getUserProfile = async (req, res) => {
     };
 
     // Optionally remove raw `patient` and `dentist` fields
-    // delete userProfile.patient;
-    // delete userProfile.dentist;
+    delete userProfile.patient;
+    delete userProfile.dentist;
 
     res.status(200).json({
       message: "User profile retrieved successfully",
@@ -252,7 +255,10 @@ export const updateUserProfile = async (req, res) => {
 
     // Fetch user role
     const existingUser = await prisma.user.findUnique({
-      where: { id: userId },
+      where: {
+        id: userId,
+        isDeleted: false
+       },
       select: { role: true },
     });
 
@@ -425,7 +431,7 @@ export const changePassword = async (req, res) => {
 
     try {
         const user = await prisma.user.findUnique({
-            where: { id: userId }
+            where: { id: userId,isDeleted: false}
         });
 
         if (!user) {
