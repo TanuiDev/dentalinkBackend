@@ -102,7 +102,7 @@ export const loginUser = async (req, res) => {
                     {emailAddress:identifier},
                     {userName:identifier}
                 ],
-                
+                isDeleted: false
             }
         })
         if(!user){
