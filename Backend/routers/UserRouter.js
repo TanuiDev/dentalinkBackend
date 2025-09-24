@@ -1,6 +1,6 @@
 import {Router} from "express"
 
-import {createUser,loginUser,getUserProfile,getAllDentists,getAllUsers,deleteUser,updateUserProfile,changePassword,getDentistById, requestPasswordReset, resetPassword} from "../controllers/userContoller.js"
+import {createUser,loginUser,getUserProfile,getAllDentists,getAllUsers,deleteUser,updateUserProfile,changePassword,getDentistById, requestPasswordReset, resetPassword,deleteMyprofile} from "../controllers/userContoller.js"
 import {AllfieldsRequired} from "../middlewares/AllfieldsRequired.js"
 import {CheckEmailPassword} from "../middlewares/UniqueFileds.js"
 import { authenticateToken,requireRole } from "../middlewares/authMiddleware.js"
@@ -34,7 +34,7 @@ usersRouter.route('/delete-user/:id')
 .delete(requireRole['ADMIN'],  deleteUser)
 
 usersRouter.route('/delete-user')
-.patch(authenticateToken,deleteUser)
+.patch(authenticateToken,deleteMyprofile)
 
 usersRouter.route('/update-profile')
 .patch(authenticateToken,updateUserProfile)
