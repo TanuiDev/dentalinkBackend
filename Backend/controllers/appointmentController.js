@@ -47,7 +47,7 @@ export const createAppointment = async (req, res) => {
       notes
     } = req.body;
 
-    // Validate date/time is not in the past
+    
     const baseDate = new Date(appointmentDate);
     if (Number.isNaN(baseDate.getTime())) {
       return res.status(400).json({ message: 'Invalid appointmentDate' });
