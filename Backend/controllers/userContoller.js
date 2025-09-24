@@ -109,7 +109,7 @@ export const loginUser = async (req, res) => {
                 message:"Invalid credentials"
             })
         }
-        const isPasswordValid = await bcrypt.compare(password,user.password)//Compare the entered password with the hashed passwords
+        const isPasswordValid = await bcrypt.compare(password,user.password)
         if(!isPasswordValid){
             return res.status(401).json({
                 message:"Incorrect password. Try again"
@@ -131,7 +131,7 @@ export const loginUser = async (req, res) => {
         }
         const token = jwt.sign(payload,process.env.JWT_SECRET_KEY,{expiresIn:'1h'})
 
-        // Set cookie (optional, for web apps)
+        
         res.cookie('token',token,{httpOnly:true,secure:false,maxAge:3600000})
         
         // Return token in response (required for mobile/API clients)
@@ -161,7 +161,7 @@ export const getUserProfile = async (req, res) => {
   
 
   try {
-    // Fetch the user with both possible role relations
+   
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -189,8 +189,8 @@ export const getUserProfile = async (req, res) => {
     };
 
     // Optionally remove raw `patient` and `dentist` fields
-    delete userProfile.patient;
-    delete userProfile.dentist;
+    // delete userProfile.patient;
+    // delete userProfile.dentist;
 
     res.status(200).json({
       message: "User profile retrieved successfully",
@@ -362,6 +362,7 @@ export const updateUserProfile = async (req, res) => {
 };
 
 
+
 export const deleteUser = async (req, res) => {
     const userId = parseInt(req.params.id);
 
@@ -380,6 +381,27 @@ export const deleteUser = async (req, res) => {
         });
     }
 };
+
+export const deleteMyprofile = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isDeleted: true }
+    });
+
+    res.status(200).json({
+      message: "User profile marked as deleted"
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error deleting user",
+      error
+    });
+  }
+};
+
 
 export const getAllUsers = async (req, res) => {
     try {
