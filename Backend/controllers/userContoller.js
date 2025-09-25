@@ -101,8 +101,8 @@ export const loginUser = async (req, res) => {
                 OR:[
                     {emailAddress:identifier},
                     {userName:identifier}
-                ],
-                isDeleted: false
+                ]
+               
             }
         })
         if(!user){
