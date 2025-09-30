@@ -101,8 +101,8 @@ export const loginUser = async (req, res) => {
                 OR:[
                     {emailAddress:identifier},
                     {userName:identifier}
-                ]
-               
+                ],
+                isDeleted:false
             }
         })
         if(!user){
@@ -255,7 +255,7 @@ export const updateUserProfile = async (req, res) => {
     }
 
     // Fetch user role
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findFirst({
       where: {
         id: userId,
         isDeleted: false
@@ -431,8 +431,8 @@ export const changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     try {
-        const user = await prisma.user.findUnique({
-            where: { id: userId,isDeleted: false}
+        const user = await prisma.user.findFirst({
+            where: { id: userId, isDeleted: false }
         });
 
         if (!user) {
@@ -505,7 +505,7 @@ export const requestPasswordReset = async (req, res) => {
             return res.status(400).json({ message: "Email is required" });
         }
 
-        const user = await prisma.user.findUnique({ where: { emailAddress } });
+        const user = await prisma.user.findFirst({ where: { emailAddress, isDeleted: false } });
         if (!user) {
             return res.status(404).json({ message: "Email not found. Enter the correct email." });
         }
