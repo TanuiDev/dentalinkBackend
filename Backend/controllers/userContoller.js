@@ -101,8 +101,8 @@ export const loginUser = async (req, res) => {
                 OR:[
                     {emailAddress:identifier},
                     {userName:identifier}
-                ],
-                isDeleted:false
+                ]
+               
             }
         })
         if(!user){
@@ -164,9 +164,9 @@ export const getUserProfile = async (req, res) => {
 
   try {
    
-    const user = await prisma.user.findFirst({
-      where: { id: userId,
-        isDeleted: false
+    const user = await prisma.user.findUnique({
+      where: { id: userId
+       
        },
       include: {
         patient: true,
@@ -178,7 +178,7 @@ export const getUserProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Only keep relevant role-specific data
+    
     let roleData = {};
     if (user.role === "PATIENT") {
       roleData = user.patient;
@@ -192,7 +192,7 @@ export const getUserProfile = async (req, res) => {
       roleData, 
     };
 
-    // Optionally remove raw `patient` and `dentist` fields
+    
     delete userProfile.patient;
     delete userProfile.dentist;
 
