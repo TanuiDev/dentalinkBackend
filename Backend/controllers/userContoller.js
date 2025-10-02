@@ -371,21 +371,37 @@ export const updateUserProfile = async (req, res) => {
 
 
 export const deleteUser = async (req, res) => {
-    const userId = parseInt(req.params.id);
+    const targetUserId = req.params.id; 
 
     try {
-        await prisma.user.delete({
-            where: { id: userId }
+        // Prevent deleting own account
+        if (req.user?.id === targetUserId) {
+            return res.status(403).json({ message: "You cannot delete your own account" });
+        }
+
+        // Ensure target exists and is not an ADMIN
+        const targetUser = await prisma.user.findUnique({
+            where: { id: targetUserId },
+            select: { id: true, role: true }
         });
 
-        res.status(200).json({
-            message: "User deleted successfully"
-        });
+        if (!targetUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (targetUser.role === 'ADMIN') {
+            return res.status(403).json({ message: "You cannot delete admin users" });
+        }
+
+        await prisma.user.delete({ where: { id: targetUserId } });
+
+        res.status(200).json({ message: "User deleted successfully" });
     } catch (error) {
-        res.status(500).json({
-            message: "Error deleting user",
-            error
-        });
+        // Handle Prisma not found
+        if (error?.code === 'P2025') {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(500).json({ message: "Error deleting user", error: error?.message || error });
     }
 };
 

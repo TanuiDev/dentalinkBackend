@@ -38,7 +38,7 @@ model User {
   updatedAt DateTime @updatedAt
   isDeleted Boolean @default(false)
   
-  // Role-specific relationships
+  
   patient   Patient?
   dentist   Dentist?
   admin     Admin?
@@ -74,10 +74,10 @@ model Dentist {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Dentist-specific fields
-  dentistId       String   @unique // Professional license number
+  dentistId       String   @unique 
   specialization  String
   education      String
-  experience     Int      // Years of experience
+  experience     Int      
   bio            String?
   availability   String?
   hourlyRate     Decimal  @db.Decimal(10,2)
