@@ -5,23 +5,15 @@ import {
   getPaymentById,
   generatePaymentReport
 } from '../controllers/paymentController.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { authenticateToken, requireRole } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
 // All payment routes require authentication
-router.use(authMiddleware);
+router.use(authenticateToken);
 
 // Admin-only routes (check if user is admin)
-router.use((req, res, next) => {
-  if (req.user?.role !== 'ADMIN') {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Admin privileges required.'
-    });
-  }
-  next();
-});
+router.use(requireRole(['ADMIN']));
 
 // Get all payments with filtering and pagination
 router.get('/', getAllPayments);
