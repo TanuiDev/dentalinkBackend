@@ -4,8 +4,7 @@ import express from "express";
 
 import {usersRouter} from "./routers/UserRouter.js"
 import {appointmentRouter} from "./routers/appointmentRouter.js"
-
-
+import paymentRouter from "./routers/paymentRouter.js"
 import {mpesaStkPushRouter} from "./routers/mpesaSTK.Push.js"
 import {prescriptionRouter} from "./routers/prescriptionRouter.js"
 
@@ -30,6 +29,7 @@ app.use(cors(
 
 app.use('/auth',usersRouter)
 app.use('/appointments',appointmentRouter)
+app.use('/payments',paymentRouter)
 app.use('/mpesa',mpesaStkPushRouter)
 app.use('/prescriptions',prescriptionRouter)
 
