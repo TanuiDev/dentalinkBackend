@@ -1,14 +1,15 @@
 import nodemailer from 'nodemailer';
 
-// Email configuration for e-prescriptions and password reset
+
 export const createEmailTransporter = () => {
-    // For development/testing, you can use Gmail or other services
-    // For production, consider using services like SendGrid, AWS SES, etc.
+    
     const transporter = nodemailer.createTransport({
-        service: process.env.EMAIL_SERVICE || 'gmail',
+        host: process.env.SMTP_HOST,
+        port: 465,
+        secure: true,
         auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD
+            user: process.env.MAIL_USER,
+            pass: process.env.MAIL_PASSWORD
         }
     });
 
@@ -18,7 +19,7 @@ export const createEmailTransporter = () => {
 export const sendPasswordResetEmail = async (toEmail, resetLink) => {
     const transporter = createEmailTransporter();
     const mailOptions = {
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        from:process.env.MAIL_USER,
         to: toEmail,
         subject: 'Reset your password',
         html: `
@@ -35,7 +36,7 @@ export const sendPasswordResetEmail = async (toEmail, resetLink) => {
     await transporter.sendMail(mailOptions);
 };
 
-// Email templates for e-prescriptions
+
 export const emailTemplates = {
     prescription: {
         subject: (prescriptionNumber) => `E-Prescription ${prescriptionNumber} - Dental Care`,
@@ -91,7 +92,7 @@ export const emailTemplates = {
     }
 };
 
-// Delivery tracking functions
+
 export const updateDeliveryStatus = async (prisma, prescriptionId, status, additionalData = {}) => {
     const updateData = {
         deliveryStatus: status,
