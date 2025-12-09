@@ -13,140 +13,132 @@ const getTimestamp = () => {
 
   return `${year}${month}${day}${hours}${minutes}${seconds}`;
 };
+const generateAccessToken = async () => {
+  const consumerKey = process.env.CONSUMER_KEY;
+  const consumerSecret = process.env.CONSUMER_SECRET;
+
+  if (!consumerKey || !consumerSecret) {
+    throw new Error("M-Pesa CONSUMER_KEY or CONSUMER_SECRET missing in environment");
+  }
+
+  const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
+
+  const response = await axios.get(
+    "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
+    {
+      headers: { Authorization: `Basic ${auth}` },
+    }
+  );
+
+  return response.data.access_token;
+};
 
 export const initiateSTKPush = async (req, res) => {
-  const amount = req.body.amount;
-  const phone = req.body.phoneNumber; 
-
-  const shortCode = process.env.SHORTCODE; 
+  const { amount, phoneNumber: phone } = req.body;
+  const shortCode = process.env.SHORTCODE;
   const passKey = process.env.PASSKEY;
   const callbackUrl = process.env.CALLBACK_URL;
-  
-  // Validate required data
-  console.log('📞 STK Push Request:', {
-    amount,
-    phone,
-    hasShortCode: !!shortCode,
-    hasPassKey: !!passKey,
-    hasCallbackUrl: !!callbackUrl,
-    hasAccessToken: !!req.accessToken
-  });
 
+  // Validate inputs
   if (!amount || !phone) {
     return res.status(400).json({
-      message: 'Missing required fields',
-      details: 'Amount and phone number are required'
+      message: "Missing required fields",
+      details: "Amount and phone number are required",
     });
   }
 
   if (!shortCode || !passKey || !callbackUrl) {
-    console.error('❌ M-Pesa configuration missing:', {
-      hasShortCode: !!shortCode,
-      hasPassKey: !!passKey,
-      hasCallbackUrl: !!callbackUrl
-    });
     return res.status(500).json({
-      message: 'M-Pesa configuration incomplete',
-      details: 'SHORTCODE, PASSKEY, or CALLBACK_URL missing in environment'
+      message: "M-Pesa configuration incomplete",
+      details: "SHORTCODE, PASSKEY, or CALLBACK_URL missing in environment",
     });
   }
-
-  if (!req.accessToken) {
-    return res.status(500).json({
-      message: 'Access token not available',
-      details: 'Failed to generate M-Pesa access token'
-    });
-  }
-
-  const timestamp = getTimestamp();
-  const password = Buffer.from(shortCode + passKey + timestamp).toString('base64');
-  const formattedPhone = phone.startsWith('0')
-    ? `254${phone.substring(1)}`
-    : phone; 
-
-  console.log('📤 Sending STK Push to Safaricom:', {
-    phone: formattedPhone,
-    amount,
-    shortCode
-  });
 
   try {
-    const response = await axios.post(
-      'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
-      {
-        BusinessShortCode: shortCode,
-        Password: password,
-        Timestamp: timestamp,
-        TransactionType: 'CustomerPayBillOnline',
-        Amount: amount,
-        PartyA: formattedPhone,
-        PartyB: shortCode,
-        PhoneNumber: formattedPhone,
-        CallBackURL: process.env.CALLBACK_URL,
-        AccountReference: 'Dentalink',
-        TransactionDesc: 'Dentalink payment',
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${req.accessToken}`, 
-        },
-      }
-    );
-    // Save pending payment with initiating user
-    try {
-      const data = response.data || {};
-      await prisma.payment.upsert({
-        where: { checkoutRequestId: data.CheckoutRequestID },
-        update: {
-          merchantRequestId: data.MerchantRequestID,
-          resultCode: data.ResponseCode ? Number(data.ResponseCode) : 0,
-          resultDesc: data.ResponseDescription || 'Pending',
-          amount: String(amount),
-          phoneNumber: formattedPhone,
-          accountReference: 'Dentalink',
-          rawCallback: data,
-          status: 'PENDING',
-          userId: req.user?.id ?? undefined,
-        },
-        create: {
-          merchantRequestId: data.MerchantRequestID || 'UNKNOWN',
-          checkoutRequestId: data.CheckoutRequestID || `PENDING_${Date.now()}`,
-          resultCode: data.ResponseCode ? Number(data.ResponseCode) : 0,
-          resultDesc: data.ResponseDescription || 'Pending',
-          amount: String(amount),
-          mpesaReceiptNumber: null,
-          transactionDate: null,
-          phoneNumber: formattedPhone,
-          accountReference: 'Dentalink',
-          rawCallback: data,
-          status: 'PENDING',
-          userId: req.user?.id ?? null,
-        },
-      });
-    } catch (saveErr) {
-      console.error('Failed to record pending payment:', saveErr);
-    }
+    // Generate fresh M-Pesa access token
+    const token = await generateAccessToken();
 
-    console.log('✅ STK Push successful:', response.data);
+    // Format phone and timestamp
+    const formattedPhone = phone.startsWith("0")
+      ? `254${phone.substring(1)}`
+      : phone;
+    const timestamp = getTimestamp();
+    const password = Buffer.from(shortCode + passKey + timestamp).toString("base64");
+
+    // STK Push payload
+    const payload = {
+      BusinessShortCode: shortCode,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: "CustomerPayBillOnline",
+      Amount: amount,
+      PartyA: formattedPhone,
+      PartyB: shortCode,
+      PhoneNumber: formattedPhone,
+      CallBackURL: callbackUrl,
+      AccountReference: "Dentalink",
+      TransactionDesc: "Dentalink payment",
+    };
+
+    console.log("📤 Sending STK Push:", { phone: formattedPhone, amount, shortCode });
+
+    // Make STK Push request
+    const response = await axios.post(
+      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
+      payload,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    // Save pending payment
+    const data = response.data || {};
+    await prisma.payment.upsert({
+      where: { checkoutRequestId: data.CheckoutRequestID || `PENDING_${Date.now()}` },
+      update: {
+        merchantRequestId: data.MerchantRequestID,
+        resultCode: data.ResponseCode ? Number(data.ResponseCode) : 0,
+        resultDesc: data.ResponseDescription || "Pending",
+        amount: String(amount),
+        phoneNumber: formattedPhone,
+        accountReference: "Dentalink",
+        rawCallback: data,
+        status: "PENDING",
+        userId: req.user?.id ?? undefined,
+      },
+      create: {
+        merchantRequestId: data.MerchantRequestID || "UNKNOWN",
+        checkoutRequestId: data.CheckoutRequestID || `PENDING_${Date.now()}`,
+        resultCode: data.ResponseCode ? Number(data.ResponseCode) : 0,
+        resultDesc: data.ResponseDescription || "Pending",
+        amount: String(amount),
+        mpesaReceiptNumber: null,
+        transactionDate: null,
+        phoneNumber: formattedPhone,
+        accountReference: "Dentalink",
+        rawCallback: data,
+        status: "PENDING",
+        userId: req.user?.id ?? null,
+      },
+    });
+
+    console.log("✅ STK Push successful:", response.data);
     res.status(200).json({
-      message: 'Payment initiated successfully',
-      response: response.data, 
+      message: "Payment initiated successfully",
+      response: response.data,
     });
   } catch (error) {
-    console.error('❌ STK Push failed:', {
+    console.error("❌ STK Push failed:", {
       message: error.message,
       response: error.response?.data,
       status: error.response?.status,
-      url: error.config?.url
+      url: error.config?.url,
     });
     res.status(500).json({
-      message: 'Error initiating payment',
+      message: "Error initiating payment",
       error: error.response?.data || error.message,
-      details: error.response?.data?.errorMessage || 'Check server logs for details'
+      details: error.response?.data?.errorMessage || "Check server logs for details",
     });
   }
 };
-
 
 export const handleSTKPushCallback = (req, res) => {
   try {
