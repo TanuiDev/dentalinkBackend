@@ -20,12 +20,55 @@ export const initiateSTKPush = async (req, res) => {
 
   const shortCode = process.env.SHORTCODE; 
   const passKey = process.env.PASSKEY;
-  const timestamp = getTimestamp();
+  const callbackUrl = process.env.CALLBACK_URL;
+  
+  // Validate required data
+  console.log('📞 STK Push Request:', {
+    amount,
+    phone,
+    hasShortCode: !!shortCode,
+    hasPassKey: !!passKey,
+    hasCallbackUrl: !!callbackUrl,
+    hasAccessToken: !!req.accessToken
+  });
 
+  if (!amount || !phone) {
+    return res.status(400).json({
+      message: 'Missing required fields',
+      details: 'Amount and phone number are required'
+    });
+  }
+
+  if (!shortCode || !passKey || !callbackUrl) {
+    console.error('❌ M-Pesa configuration missing:', {
+      hasShortCode: !!shortCode,
+      hasPassKey: !!passKey,
+      hasCallbackUrl: !!callbackUrl
+    });
+    return res.status(500).json({
+      message: 'M-Pesa configuration incomplete',
+      details: 'SHORTCODE, PASSKEY, or CALLBACK_URL missing in environment'
+    });
+  }
+
+  if (!req.accessToken) {
+    return res.status(500).json({
+      message: 'Access token not available',
+      details: 'Failed to generate M-Pesa access token'
+    });
+  }
+
+  const timestamp = getTimestamp();
   const password = Buffer.from(shortCode + passKey + timestamp).toString('base64');
   const formattedPhone = phone.startsWith('0')
     ? `254${phone.substring(1)}`
     : phone; 
+
+  console.log('📤 Sending STK Push to Safaricom:', {
+    phone: formattedPhone,
+    amount,
+    shortCode
+  });
 
   try {
     const response = await axios.post(
@@ -84,14 +127,22 @@ export const initiateSTKPush = async (req, res) => {
       console.error('Failed to record pending payment:', saveErr);
     }
 
+    console.log('✅ STK Push successful:', response.data);
     res.status(200).json({
       message: 'Payment initiated successfully',
       response: response.data, 
     });
-  } catch (error) {   
+  } catch (error) {
+    console.error('❌ STK Push failed:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      url: error.config?.url
+    });
     res.status(500).json({
       message: 'Error initiating payment',
       error: error.response?.data || error.message,
+      details: error.response?.data?.errorMessage || 'Check server logs for details'
     });
   }
 };
