@@ -25,9 +25,9 @@ io.on("connection", (socket) => {
       socket.to(r).emit("peer-ready", { socketId: socket.id });
     });
 
-    // W
-    socket.on("end-call", ({ roomId: r }) => {
-      socket.to(r).emit("end-call", { socketId: socket.id });
+    // When dentist ends call, all users should be removed
+    socket.on("end-call", ({ roomId: r, role }) => {
+      socket.to(r).emit("end-call", { socketId: socket.id, role });
     });
 
     socket.on("signal-offer", ({ roomId: r, offer }) => {
